@@ -31,42 +31,52 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 Record your plan here before editing code.
 
 - Presentation tier decision:
-    Add real fetch logic, loading/empty/error rendering, and accessible UI states in the route components under octofit-tracker/frontend/src/components.
-    Only after the API contract is working should the frontend be wired to it.
+  - Smallest safe implementation order:
+    1. Replace the placeholder capability cards with real data-fetching route components that render the API responses and empty/loading/error states.
+    2. Keep the shared API client and route structure isolated so the UI only consumes the contract exposed by the backend.
+    3. Verify accessible rendering and fetch behavior with the frontend contract tests before widening styling or feature polish.
 - Logic tier decision:
-    Implement createActivity, createTeam, getLeaderboard, and suggestWorkouts in octofit-tracker/backend/src/services/octofitService.ts.
-    Keep validation behavior aligned with the API contract: 4xx for bad IDs / missing users or teams, never 500 from cast errors.
-    This unlocks the backend contract tests and provides a stable API for the frontend.
+  - Smallest safe implementation order:
+    1. Implement the shared service layer contract for activities, teams, leaderboard, and workout suggestions without changing router structure.
+    2. Add deliberate 4xx validation for invalid IDs, missing records, and missing users before any extra business logic.
+    3. Confirm the returned payload shapes match the API contract, then handle edge cases like duplicate IDs or unknown users.
 - Data tier decision:
-    Fix required validation/defaults in the Mongoose models.
-    Confirm seeded demo records are valid and idempotent via the seed script.
-    This is the foundation; API route tests assume correct persisted shape and constraints.
+  - Smallest safe implementation order:
+    1. Define required Mongoose field validation and defaults for users, teams, activities, and workouts.
+    2. Confirm the seed script preserves existing app data while upserting stable demo records and relationships.
+    3. Validate idempotent seeding and schema constraints before touching API behavior.
 - Activity tracking approach:
+  - Smallest safe implementation order:
+    1. Validate `userId` and `teamId` as well-formed IDs and ensure those records exist.
+    2. Persist `user`, `team`, `type`, `minutes`, `occurredAt`, and computed `points` in one creation flow.
+    3. Ensure the list endpoint returns the stored documents and the POST route rejects bad payloads with a 4xx rather than a 500.
 - Team management approach:
+  - Smallest safe implementation order:
+    1. Reject missing or empty team names with a 400 response and validate member IDs.
+    2. Persist the team and update the member array relationship in a single write path.
+    3. Return the created team and list teams with populated members for the frontend.
 - Leaderboard approach:
+  - Smallest safe implementation order:
+    1. Aggregate activity points per team and sort by highest total first.
+    2. Add a 1-based rank to each result while preserving deterministic ordering.
+    3. Expose only the fields required by the contract: `teamName`, `totalPoints`, and `rank`.
 - Workout suggestions approach:
-
-
+  - Smallest safe implementation order:
+    1. Match the requested user email to a seeded user and reject unknown emails with a deliberate 4xx.
+    2. Inspect the user’s recent activity pattern and goal to pick the best workout focus.
+    3. Return ranked suggestions and a human-readable reason that explains the recommendation.
 
 ## Test plan
 
 Record the commands you run and what each failure means.
 
 - Data-tier command: `npm run test:data --prefix octofit-tracker/backend`
-    5 tests run, 4 fail
-    Failing assertions are in octofit-tracker/backend/tests/data.contract.test.ts
-    Root cause: model schemas in octofit-tracker/backend/src/models/User.ts, Team.ts, Activity.ts, and Workout.ts are not enforcing required fields/defaults, so validateSync() returns undefined where tests expect errors.
+  - Current failing tests: 4 failed, 1 passed. The schema validation tests fail because the required field constraints are missing from the Mongoose models, and the seed contract still passes because the idempotent demo seeding logic already works.
 - API command: `npm run test:api --prefix octofit-tracker/backend`
-    4 tests run, 4 fail
-    Failing assertions are in octofit-tracker/backend/tests/api.contract.test.ts
-    Root cause: service methods in octofit-tracker/backend/src/services/octofitService.ts are intentionally stubbed:
-    createActivity and createTeam throw 501
-    getLeaderboard returns []
-    suggestWorkouts returns a random/first workout instead of matching the user’s actual activity pattern
-    This also explains the 400-vs-501 mismatches and empty leaderboard behavior.
+  - Current failing tests: 4 failed. The API tests fail because the service layer is still stubbed (`501` responses, empty leaderboard, and workout suggestions that do not match the user pattern), which prevents validation, creation, and ranking behavior from satisfying the contract.
 - Frontend command: `npm test --prefix octofit-tracker/frontend`
-    15 tests run, 15 fail
-    Failing assertions are in octofit-tracker/frontend/tests/app.contract.test.tsx
-    Root cause: the UI components are placeholders; Activities.tsx, Teams.tsx, Leaderboard.tsx, and Workouts.tsx all render a generic CapabilityCard, and CapabilityCard.tsx still says “Implementation pending.” There is no fetched data, loading state, empty state, or error alert handling.
+  - Current failing tests: 15 failed. The frontend tests fail because the route components are still placeholder cards without real fetch logic, loading, empty-state, or alert handling, so the app never renders the expected activity, team, leaderboard, or workout content.
 - Backend build command: `npm run build --prefix octofit-tracker/backend`
+  - Current failing tests: not yet run; this build should confirm TypeScript and backend integration compile cleanly after the data and API implementations are in place.
 - Frontend build command: `npm run build --prefix octofit-tracker/frontend`
+  - Current failing tests: not yet run; this build should confirm the React app compiles after the route-level UI and fetch logic are implemented.
