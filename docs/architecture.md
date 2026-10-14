@@ -31,37 +31,30 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 Record your plan here before editing code.
 
 - Presentation tier decision:
-  - Smallest safe implementation order:
     1. Replace the placeholder capability cards with real data-fetching route components that render the API responses and empty/loading/error states.
     2. Keep the shared API client and route structure isolated so the UI only consumes the contract exposed by the backend.
     3. Verify accessible rendering and fetch behavior with the frontend contract tests before widening styling or feature polish.
 - Logic tier decision:
-  - Smallest safe implementation order:
     1. Implement the shared service layer contract for activities, teams, leaderboard, and workout suggestions without changing router structure.
     2. Add deliberate 4xx validation for invalid IDs, missing records, and missing users before any extra business logic.
     3. Confirm the returned payload shapes match the API contract, then handle edge cases like duplicate IDs or unknown users.
 - Data tier decision:
-  - Smallest safe implementation order:
     1. Define required Mongoose field validation and defaults for users, teams, activities, and workouts.
     2. Confirm the seed script preserves existing app data while upserting stable demo records and relationships.
     3. Validate idempotent seeding and schema constraints before touching API behavior.
 - Activity tracking approach:
-  - Smallest safe implementation order:
     1. Validate `userId` and `teamId` as well-formed IDs and ensure those records exist.
     2. Persist `user`, `team`, `type`, `minutes`, `occurredAt`, and computed `points` in one creation flow.
     3. Ensure the list endpoint returns the stored documents and the POST route rejects bad payloads with a 4xx rather than a 500.
 - Team management approach:
-  - Smallest safe implementation order:
     1. Reject missing or empty team names with a 400 response and validate member IDs.
     2. Persist the team and update the member array relationship in a single write path.
     3. Return the created team and list teams with populated members for the frontend.
 - Leaderboard approach:
-  - Smallest safe implementation order:
     1. Aggregate activity points per team and sort by highest total first.
     2. Add a 1-based rank to each result while preserving deterministic ordering.
     3. Expose only the fields required by the contract: `teamName`, `totalPoints`, and `rank`.
 - Workout suggestions approach:
-  - Smallest safe implementation order:
     1. Match the requested user email to a seeded user and reject unknown emails with a deliberate 4xx.
     2. Inspect the user’s recent activity pattern and goal to pick the best workout focus.
     3. Return ranked suggestions and a human-readable reason that explains the recommendation.
