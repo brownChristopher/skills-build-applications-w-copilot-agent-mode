@@ -30,31 +30,43 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 Record your plan here before editing code.
 
-- Data tier decision:
-    Add required Mongoose validation and defaults to the models.
-    Ensure IDs, goals, team membership, and activity/workout fields match the contract.
-    This is the dependency root: the API and UI tests all assume valid persisted shapes.
-- Logic tier decision:
-    Implement the service functions in octofitService.ts in the contract order:
-        createActivity
-        createTeam
-        getLeaderboard
-        suggestWorkouts
-    Keep error handling deliberate: invalid user/team input should produce a 4xx, not a cast error or 500.
 - Presentation tier decision:
-    Implement the fetch-driven UI for each capability in components.
-    Add the required loading, empty, and error states before worrying about polish.
+    Add real fetch logic, loading/empty/error rendering, and accessible UI states in the route components under octofit-tracker/frontend/src/components.
+    Only after the API contract is working should the frontend be wired to it.
+- Logic tier decision:
+    Implement createActivity, createTeam, getLeaderboard, and suggestWorkouts in octofit-tracker/backend/src/services/octofitService.ts.
+    Keep validation behavior aligned with the API contract: 4xx for bad IDs / missing users or teams, never 500 from cast errors.
+    This unlocks the backend contract tests and provides a stable API for the frontend.
+- Data tier decision:
+    Fix required validation/defaults in the Mongoose models.
+    Confirm seeded demo records are valid and idempotent via the seed script.
+    This is the foundation; API route tests assume correct persisted shape and constraints.
 - Activity tracking approach:
 - Team management approach:
 - Leaderboard approach:
 - Workout suggestions approach:
+
+
 
 ## Test plan
 
 Record the commands you run and what each failure means.
 
 - Data-tier command: `npm run test:data --prefix octofit-tracker/backend`
+    5 tests run, 4 fail
+    Failing assertions are in octofit-tracker/backend/tests/data.contract.test.ts
+    Root cause: model schemas in octofit-tracker/backend/src/models/User.ts, Team.ts, Activity.ts, and Workout.ts are not enforcing required fields/defaults, so validateSync() returns undefined where tests expect errors.
 - API command: `npm run test:api --prefix octofit-tracker/backend`
+    4 tests run, 4 fail
+    Failing assertions are in octofit-tracker/backend/tests/api.contract.test.ts
+    Root cause: service methods in octofit-tracker/backend/src/services/octofitService.ts are intentionally stubbed:
+    createActivity and createTeam throw 501
+    getLeaderboard returns []
+    suggestWorkouts returns a random/first workout instead of matching the user’s actual activity pattern
+    This also explains the 400-vs-501 mismatches and empty leaderboard behavior.
 - Frontend command: `npm test --prefix octofit-tracker/frontend`
+    15 tests run, 15 fail
+    Failing assertions are in octofit-tracker/frontend/tests/app.contract.test.tsx
+    Root cause: the UI components are placeholders; Activities.tsx, Teams.tsx, Leaderboard.tsx, and Workouts.tsx all render a generic CapabilityCard, and CapabilityCard.tsx still says “Implementation pending.” There is no fetched data, loading state, empty state, or error alert handling.
 - Backend build command: `npm run build --prefix octofit-tracker/backend`
 - Frontend build command: `npm run build --prefix octofit-tracker/frontend`
