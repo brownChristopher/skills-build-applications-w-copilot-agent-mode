@@ -6,10 +6,11 @@ type Item = Record<string, unknown>;
 type Props = {
   title: string;
   description: string;
-  endpoint: string;
-  listKey: string;
   emptyText: string;
-};
+} & (
+  | { loadItems: () => Promise<Item[]>; endpoint?: never; listKey?: never }
+  | { loadItems?: never; endpoint: string; listKey: string }
+);
 
 function formatItem(item: Item) {
   if (typeof item.teamName === 'string' && (typeof item.totalPoints === 'number' || typeof item.rank === 'number')) {
@@ -37,7 +38,7 @@ function formatItem(item: Item) {
   return String(preferred);
 }
 
-export function CapabilityCard({ title, description, endpoint, listKey, emptyText }: Props) {
+export function CapabilityCard({ title, description, endpoint, listKey, loadItems, emptyText }: Props) {
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +51,14 @@ export function CapabilityCard({ title, description, endpoint, listKey, emptyTex
         setIsLoading(true);
         setError(null);
 
-        const payload = await getJson<Record<string, unknown>>(endpoint);
+        let list: Item[];
+        if (loadItems) {
+          list = await loadItems();
+        } else {
+          const payload = await getJson<Record<string, unknown>>(endpoint);
+          list = Array.isArray(payload[listKey]) ? (payload[listKey] as Item[]) : [];
+        }
         if (!isMounted) return;
-
-        const list = Array.isArray(payload[listKey]) ? (payload[listKey] as Item[]) : [];
         setItems(list);
       } catch {
         if (isMounted) {
@@ -71,7 +76,7 @@ export function CapabilityCard({ title, description, endpoint, listKey, emptyTex
     return () => {
       isMounted = false;
     };
-  }, [endpoint, listKey, title]);
+  }, [endpoint, listKey, loadItems, title]);
 
   if (isLoading) {
     return (
