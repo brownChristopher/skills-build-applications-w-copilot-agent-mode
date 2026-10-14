@@ -28,22 +28,27 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 ## Implementation decisions
 
-Record your plan here before editing code.
-
-- Presentation tier decision:
-- Logic tier decision:
-- Data tier decision:
-- Activity tracking approach:
-- Team management approach:
-- Leaderboard approach:
-- Workout suggestions approach:
+- Presentation tier decision: Keep the frontend as a route-driven React app with dedicated capability components that fetch from the REST API, render data from the response payload, and surface loading, empty, and error states via accessible roles and text. The shared `CapabilityCard` pattern is used to keep layout consistent while the concrete pages fill in their own data and user feedback.
+- Logic tier decision: Build the Express service layer in `octofit-tracker/backend/src/services` and keep route files thin. Validate request bodies and identifiers before database writes, map model errors to deliberate 4xx responses, and leave auth unimplemented as required by the exercise.
+- Data tier decision: Use Mongoose schemas with required fields and sensible defaults for `User`, `Team`, `Activity`, and `Workout`. Maintain references to related documents and use `seed.ts` with upsert semantics so seeded demo data is idempotent without deleting unrelated application data.
+- Activity tracking approach: Accept `userId`, `teamId`, `type`, and `minutes`; reject malformed or unknown IDs with a 4xx instead of a cast error; confirm the user and team exist; store `user`, `team`, `type`, `minutes`, and computed `points` and `occurredAt` on the Activity document.
+- Team management approach: Require `name` and `mascot` when creating a team, initialize `members` to an empty array, and keep the submitted member IDs in the team record so listing teams exposes the expected membership collection.
+- Leaderboard approach: Aggregate activity points by team, sum totals, sort descending, and assign a 1-based rank. The response shape is `{ leaderboard: [{ teamName, totalPoints, rank }] }` to match the contract.
+- Workout suggestions approach: Resolve the user email to a seeded user, inspect the user’s recent activity pattern or fitness goal, and return the most relevant workout(s) with a matching `focus` and explanatory `reason`. Unknown emails should return a deliberate 4xx (for example, 404) instead of a generic success response.
 
 ## Test plan
 
 Record the commands you run and what each failure means.
 
 - Data-tier command: `npm run test:data --prefix octofit-tracker/backend`
+  - Validates Mongoose required-field validation and idempotent seed behavior. Failures here indicate missing schema constraints or incorrect upsert logic; the current failure pattern shows `User`, `Team`, `Activity`, and `Workout` validators are not enforcing required fields.
 - API command: `npm run test:api --prefix octofit-tracker/backend`
+  - Validates the Express route contract for activities, teams, leaderboard ranking, and workout suggestions. Failures here indicate incomplete service implementation, not frontend issues: the API currently returns 501s and empty arrays because the service functions are stubs.
 - Frontend command: `npm test --prefix octofit-tracker/frontend`
+  - Validates the client-side rendering contract for loading, empty, error, and success states. Failures here indicate placeholder UI components or missing fetch-driven state updates; current failures are consistent with the programmatic `CapabilityCard` placeholder content.
 - Backend build command: `npm run build --prefix octofit-tracker/backend`
+  - Confirms the TypeScript backend compiles cleanly after the service and model changes. This catches type issues before the app is considered ready.
 - Frontend build command: `npm run build --prefix octofit-tracker/frontend`
+  - Confirms the React client builds successfully and the Vite/Bundler setup remains valid after the route components are implemented.
+
+The execution order should remain data -> API -> frontend, because the data model and service contracts are the root dependencies for the UI. This order keeps the smallest safe test-driven loop while preventing frontend work from masking backend contract issues.
