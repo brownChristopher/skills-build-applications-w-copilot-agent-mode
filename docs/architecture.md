@@ -30,9 +30,10 @@ OctoFit Tracker is a three-tier application for a school fitness program. The st
 
 Record your plan here before editing code.
 
-- Presentation tier decision:
-    Implement the fetch-driven UI for each capability in components.
-    Add the required loading, empty, and error states before worrying about polish.
+- Data tier decision:
+    Add required Mongoose validation and defaults to the models.
+    Ensure IDs, goals, team membership, and activity/workout fields match the contract.
+    This is the dependency root: the API and UI tests all assume valid persisted shapes.
 - Logic tier decision:
     Implement the service functions in octofitService.ts in the contract order:
         createActivity
@@ -40,10 +41,9 @@ Record your plan here before editing code.
         getLeaderboard
         suggestWorkouts
     Keep error handling deliberate: invalid user/team input should produce a 4xx, not a cast error or 500.
-- Data tier decision:
-    Add required Mongoose validation and defaults to the models.
-    Ensure IDs, goals, team membership, and activity/workout fields match the contract.
-    This is the dependency root: the API and UI tests all assume valid persisted shapes.
+- Presentation tier decision:
+    Implement the fetch-driven UI for each capability in components.
+    Add the required loading, empty, and error states before worrying about polish.
 - Activity tracking approach:
 - Team management approach:
 - Leaderboard approach:
